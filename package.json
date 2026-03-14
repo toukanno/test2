@@ -1,0 +1,69 @@
+{
+  "name": "ai-video-generator",
+  "version": "1.0.0",
+  "description": "AI動画生成 & YouTube投稿自動化 Electron アプリ",
+  "main": "app/electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev:renderer\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev:renderer": "webpack serve --config webpack.renderer.config.js --mode development",
+    "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
+    "build": "npm run build:renderer && electron-builder",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.aivideo.generator",
+    "productName": "AI Video Generator",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "app/**/*",
+      "build/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "app/storage",
+        "to": "storage"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.video"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.0",
+    "electron-store": "^8.2.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "googleapis": "^140.0.0",
+    "openai": "^4.70.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@babel/preset-env": "^7.25.0",
+    "@babel/preset-react": "^7.25.0",
+    "babel-loader": "^9.2.0",
+    "concurrently": "^9.0.0",
+    "css-loader": "^7.1.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "html-webpack-plugin": "^5.6.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "style-loader": "^4.0.0",
+    "wait-on": "^8.0.0",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.0",
+    "webpack-dev-server": "^5.1.0"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+.env
+app/storage/projects/*
+app/storage/outputs/*
+app/storage/temp/*
+*.db
+!.gitkeep
