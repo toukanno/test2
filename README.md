@@ -1,62 +1,143 @@
-# video-auto-editor-2（AI Video Generator）
+# Video Auto Editor
 
-動画編集自動化ツールの試作2です。Electron + React製のデスクトップアプリとして、AI台本生成から動画合成・YouTube投稿までをGUIで操作できます。
+> AI-powered video creation & publishing automation / AI動画自動生成＆投稿ツール
 
-## 概要
+[![CI](https://github.com/toukanno/video-auto-editor-2/actions/workflows/ci.yml/badge.svg)](https://github.com/toukanno/video-auto-editor-2/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron)](https://www.electronjs.org/)
 
-テーマを入力するだけで以下を自動処理:
+テーマを入力するだけで、**AI台本生成 → 画像生成 → 音声合成 → 動画レンダリング → YouTube投稿** までを自動化するデスクトップアプリです。
 
-1. AI台本生成（OpenAI）
-2. シーン構成の自動設計
-3. 画像生成（各シーン用）
-4. AI音声生成（ナレーション）
-5. 字幕生成
-6. 動画合成（FFmpeg）
-7. YouTube自動投稿
+Enter a topic and automatically generate a full video — from AI script writing to YouTube upload.
 
-## 技術スタック
+## Features / 機能
 
-- **Framework**: Electron 33 + React 18
-- **ビルド**: Webpack + Babel
-- **AI**: OpenAI API（台本・画像・音声）
-- **動画処理**: fluent-ffmpeg
-- **データ**: better-sqlite3
-- **投稿連携**: YouTube Data API（googleapis）
+| Feature | Description |
+|---|---|
+| 🤖 AI Script | OpenAI GPT-4o で台本を自動生成 |
+| 🎬 Scene Planning | シーン構成を自動設計 |
+| 🖼️ Image Generation | DALL-E 3 で各シーンの画像を生成 |
+| 🔊 Voice Synthesis | OpenAI TTS でナレーション音声を生成 |
+| 📝 Subtitles | 字幕ファイルを自動生成 |
+| 🎥 Video Rendering | FFmpeg で動画を合成 |
+| 📤 YouTube Upload | YouTube Data API で自動投稿 |
+| 🔄 Workflow Engine | 全工程をパイプラインで一括実行 |
 
-## ディレクトリ
+## Architecture / アーキテクチャ
 
 ```
 app/
-├── config/            # アプリ設定
-├── electron/          # Electronメインプロセス
-├── modules/
-│   ├── ai-provider/       # OpenAI API連携
-│   ├── script-generator/  # AI台本生成
-│   ├── scene-planner/     # シーン構成
-│   ├── image-generator/   # 画像生成
-│   ├── voice-generator/   # AI音声生成
-│   ├── subtitle-generator/# 字幕生成
-│   ├── video-generator/   # 動画合成
-│   ├── youtube-publisher/ # YouTube投稿
-│   ├── workflow-engine/   # ワークフロー制御
-│   └── data-layer/        # DB・ストレージ
-├── renderer/          # React UI
+├── electron/              # Main process (Electron)
+│   ├── main.js            #   Window creation, lifecycle
+│   ├── preload.js         #   Context bridge (secure IPC)
+│   └── ipc-handlers.js    #   IPC handler registration
+├── modules/               # Backend modules
+│   ├── ai-provider/       #   OpenAI API abstraction
+│   ├── script-generator/  #   AI script generation
+│   ├── scene-planner/     #   Scene decomposition
+│   ├── image-generator/   #   DALL-E image generation
+│   ├── voice-generator/   #   TTS voice synthesis
+│   ├── subtitle-generator/#   Subtitle file creation
+│   ├── video-generator/   #   FFmpeg video rendering
+│   ├── youtube-publisher/ #   YouTube Data API upload
+│   ├── workflow-engine/   #   Pipeline orchestration
+│   └── data-layer/        #   SQLite DB, storage, logging
+├── renderer/              # Frontend (React 18)
+│   ├── App.jsx
 │   └── components/
-└── storage/           # ローカルデータ
+│       ├── ProjectForm.jsx
+│       ├── ProjectList.jsx
+│       ├── ScriptEditor.jsx
+│       ├── SceneList.jsx
+│       ├── VideoPreview.jsx
+│       ├── YouTubeUpload.jsx
+│       ├── WorkflowPanel.jsx
+│       ├── SettingsPanel.jsx
+│       └── LogPanel.jsx
+├── config/                # App configuration
+└── storage/               # Local data (gitignored)
 ```
 
-## セットアップ
+## Installation / インストール
+
+### 必要なもの
+
+- **Node.js** 22+
+- **FFmpeg** (動画レンダリングに必要)
+- **OpenAI API Key**
+
+### セットアップ
 
 ```bash
+git clone https://github.com/toukanno/video-auto-editor-2.git
+cd video-auto-editor-2
 npm install
 cp .env.example .env
-# .env に OPENAI_API_KEY を設定
+```
+
+`.env` を編集:
+
+```
+OPENAI_API_KEY=sk-your-key-here
+YOUTUBE_CLIENT_ID=your-google-client-id
+YOUTUBE_CLIENT_SECRET=your-google-client-secret
+```
+
+### 起動
+
+```bash
+# 開発モード（Hot reload）
+npm run dev
+
+# プロダクション
 npm start
 ```
 
-## 使い分け
+## Build / ビルド
 
-| リポジトリ | 役割 |
+```bash
+# Renderer のみビルド
+npm run build:renderer
+
+# Electron アプリとしてパッケージング
+npm run build
+
+# ディレクトリ出力（テスト用）
+npm run pack
+```
+
+出力先: `dist/`
+
+## Tech Stack / 技術スタック
+
+| Layer | Technology |
 |---|---|
-| video-auto-editor-1 | Laravel製バックエンド。ジョブ処理・API連携の検証 |
-| **video-auto-editor-2**（このリポ） | Electron製デスクトップアプリ。GUI操作でのワークフロー実行 |
+| Framework | Electron 33 |
+| Frontend | React 18 + Webpack 5 |
+| AI | OpenAI API (GPT-4o, DALL-E 3, TTS) |
+| Video | FFmpeg (fluent-ffmpeg) |
+| Database | SQLite (better-sqlite3) |
+| Upload | YouTube Data API (googleapis) |
+
+## Roadmap
+
+- [x] v0.1 — MVP: Script → Image → Voice → Video pipeline
+- [ ] v0.2 — Video editing engine improvements (transitions, effects)
+- [ ] v0.3 — Multi-language support, batch processing
+- [ ] v0.4 — TikTok / Instagram Reels auto-upload
+- [ ] v1.0 — Stable release with installer
+
+## Related / 関連リポジトリ
+
+| Repository | Role |
+|---|---|
+| **video-auto-editor-2** (this) | Electron desktop app — GUI workflow |
+| [video-auto-editor-1](https://github.com/toukanno/video-auto-editor-1) | Laravel backend — job processing reference |
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
+## License
+
+[MIT](LICENSE)
