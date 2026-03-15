@@ -1,5 +1,5 @@
 {
-  "name": "ai-video-generator",
+  "name": "video-auto-editor-2",
   "version": "1.0.0",
   "description": "AI動画生成 & YouTube投稿自動化 Electron アプリ",
   "main": "app/electron/main.js",
