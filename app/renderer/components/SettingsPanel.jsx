@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const api = window.electronAPI;
 
-export default function SettingsPanel({ onBack, showToast, systemInfo }) {
+export default function SettingsPanel({ onBack, showToast, systemInfo, onSettingsChanged }) {
   const [settings, setSettings] = useState({ hasOpenAIKey: false, hasYouTubeCredentials: false });
   const [openaiKey, setOpenaiKey] = useState('');
   const [ytClientId, setYtClientId] = useState('');
@@ -34,6 +34,7 @@ export default function SettingsPanel({ onBack, showToast, systemInfo }) {
     setYtClientId('');
     setYtClientSecret('');
     await loadSettings();
+    onSettingsChanged?.();
   }
 
   async function validateKey() {

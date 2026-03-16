@@ -334,7 +334,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
   });
 
   ipcMain.handle('settings:update', async (_e, settings) => {
-    // Update runtime + persist to electron-store
+    // Update runtime + persist to store
     if (settings.openaiApiKey) {
       process.env.OPENAI_API_KEY = settings.openaiApiKey;
       store.set('openaiApiKey', settings.openaiApiKey);
@@ -347,7 +347,13 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
       process.env.YOUTUBE_CLIENT_SECRET = settings.youtubeClientSecret;
       store.set('youtubeClientSecret', settings.youtubeClientSecret);
     }
-    return { success: true };
+    return {
+      success: true,
+      data: {
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+        hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+      },
+    };
   });
 
   ipcMain.handle('settings:validateApiKey', async () => {

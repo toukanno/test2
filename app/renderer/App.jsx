@@ -370,6 +370,10 @@ export default function App() {
             onBack={() => setView(currentProject ? 'workflow' : 'home')}
             showToast={showToast}
             systemInfo={systemInfo}
+            onSettingsChanged={async () => {
+              const info = await api.system.info();
+              if (info.success) setSystemInfo(info.data);
+            }}
           />
         )}
       </main>
