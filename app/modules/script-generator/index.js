@@ -69,7 +69,30 @@ class ScriptGenerator {
       maxTokens: 8192,
     });
 
-    logger.info(`Script generated: ${result.scenes?.length || 0} scenes`);
+    // Validate required fields
+    if (!result.title || typeof result.title !== 'string') {
+      throw new Error('AIが有効な台本を生成できませんでした（タイトルがありません）');
+    }
+    if (!Array.isArray(result.scenes) || result.scenes.length === 0) {
+      throw new Error('AIが有効な台本を生成できませんでした（シーンがありません）');
+    }
+
+    // Ensure each scene has required fields with defaults
+    result.scenes = result.scenes.map((scene, i) => ({
+      sceneNumber: scene.sceneNumber || i + 1,
+      title: scene.title || `シーン ${i + 1}`,
+      description: scene.description || '',
+      narration: scene.narration || '',
+      duration: scene.duration || '10',
+      imagePrompt: scene.imagePrompt || scene.description || '',
+      notes: scene.notes || '',
+    }));
+
+    result.tags = Array.isArray(result.tags) ? result.tags : [];
+    result.titleAlternatives = Array.isArray(result.titleAlternatives) ? result.titleAlternatives : [];
+    result.summary = result.summary || '';
+
+    logger.info(`Script generated: ${result.scenes.length} scenes`);
     return result;
   }
 

@@ -8,6 +8,28 @@ const currentLevel = LOG_LEVELS[process.env.APP_LOG_LEVEL || 'info'];
 const logBuffer = [];
 const MAX_BUFFER_SIZE = 500;
 
+// File logging (lazy init)
+let logStream = null;
+let logDir = null;
+
+/**
+ * Initialize file logging
+ * @param {string} storagePath - Base storage path
+ */
+function initFileLogging(storagePath) {
+  try {
+    logDir = path.join(storagePath, 'logs');
+    fs.mkdirSync(logDir, { recursive: true });
+
+    const date = new Date().toISOString().slice(0, 10);
+    const logFile = path.join(logDir, `app-${date}.log`);
+    logStream = fs.createWriteStream(logFile, { flags: 'a' });
+  } catch {
+    // File logging is optional; don't crash if it fails
+    logStream = null;
+  }
+}
+
 /**
  * Create a logger instance for a module
  * @param {string} moduleName
@@ -36,6 +58,14 @@ function createLogger(moduleName) {
       console.log(`${prefix} ${message}`);
     }
 
+    // File output
+    if (logStream && !logStream.destroyed) {
+      const line = extra
+        ? `${prefix} ${message} ${JSON.stringify(entry.extra)}\n`
+        : `${prefix} ${message}\n`;
+      logStream.write(line);
+    }
+
     // Buffer for UI
     logBuffer.push(entry);
     if (logBuffer.length > MAX_BUFFER_SIZE) {
@@ -58,4 +88,4 @@ function getRecentLogs(count = 100) {
   return logBuffer.slice(-count);
 }
 
-module.exports = { createLogger, getRecentLogs };
+module.exports = { createLogger, getRecentLogs, initFileLogging };

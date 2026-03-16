@@ -9,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 const { registerIpcHandlers } = require('./ipc-handlers');
 const { initDatabase } = require('../modules/data-layer/database');
 const { ensureDirectories } = require('../modules/data-layer/storage');
-const { createLogger } = require('../modules/data-layer/logger');
+const { createLogger, initFileLogging } = require('../modules/data-layer/logger');
 
 const logger = createLogger('main');
 const isDev = !app.isPackaged;
@@ -70,6 +70,9 @@ app.whenReady().then(async () => {
       ? path.join(__dirname, '..', 'storage')
       : path.join(app.getPath('userData'), 'storage');
     ensureDirectories(storagePath);
+
+    // Initialize file logging
+    initFileLogging(storagePath);
 
     // Initialize database
     const dbPath = isDev
