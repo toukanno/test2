@@ -88,4 +88,14 @@ function getRecentLogs(count = 100) {
   return logBuffer.slice(-count);
 }
 
-module.exports = { createLogger, getRecentLogs, initFileLogging };
+/**
+ * Close log file stream (call on app quit)
+ */
+function closeFileLogging() {
+  if (logStream && !logStream.destroyed) {
+    logStream.end();
+    logStream = null;
+  }
+}
+
+module.exports = { createLogger, getRecentLogs, initFileLogging, closeFileLogging };

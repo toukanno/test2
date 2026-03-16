@@ -138,9 +138,9 @@ class VideoGenerator {
    */
   _concatenateVideos(ffmpeg, videoPaths, outputPath, tempDir) {
     return new Promise((resolve, reject) => {
-      // Create concat list file
+      // Create concat list file (use forward slashes for FFmpeg compatibility on Windows)
       const listPath = path.join(tempDir, 'concat_list.txt');
-      const listContent = videoPaths.map((p) => `file '${p}'`).join('\n');
+      const listContent = videoPaths.map((p) => `file '${p.replace(/\\/g, '/')}'`).join('\n');
       fs.writeFileSync(listPath, listContent);
 
       ffmpeg()
@@ -165,7 +165,7 @@ class VideoGenerator {
       ffmpeg()
         .input(videoPath)
         .outputOptions([
-          '-vf', `subtitles='${subtitlePath.replace(/'/g, "'\\''")}'`,
+          '-vf', `subtitles='${subtitlePath.replace(/\\/g, '/').replace(/'/g, "'\\''").replace(/:/g, '\\:')}'`,
           '-c:a', 'copy',
         ])
         .output(outputPath)

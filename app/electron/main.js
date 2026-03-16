@@ -9,7 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 const { registerIpcHandlers } = require('./ipc-handlers');
 const { initDatabase } = require('../modules/data-layer/database');
 const { ensureDirectories } = require('../modules/data-layer/storage');
-const { createLogger, initFileLogging } = require('../modules/data-layer/logger');
+const { createLogger, initFileLogging, closeFileLogging } = require('../modules/data-layer/logger');
 
 const logger = createLogger('main');
 const isDev = !app.isPackaged;
@@ -115,6 +115,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('will-quit', () => {
+  closeFileLogging();
 });
 
 app.on('activate', () => {

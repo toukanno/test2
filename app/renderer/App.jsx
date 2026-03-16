@@ -72,8 +72,12 @@ export default function App() {
   // Load system info + projects on mount
   useEffect(() => {
     (async () => {
-      const info = await api.system.info();
-      if (info.success) setSystemInfo(info.data);
+      try {
+        const info = await api.system.info();
+        if (info.success) setSystemInfo(info.data);
+      } catch (err) {
+        console.error('Failed to load system info:', err);
+      }
       loadProjects();
     })();
   }, []);
@@ -133,31 +137,43 @@ export default function App() {
   }, []);
 
   async function loadProjects() {
-    const result = await api.project.list();
-    if (result.success) setProjects(result.data);
+    try {
+      const result = await api.project.list();
+      if (result.success) setProjects(result.data);
+    } catch (err) {
+      console.error('loadProjects failed:', err);
+    }
   }
 
   async function selectProject(project) {
-    const result = await api.project.get(project.id);
-    if (result.success) {
-      setCurrentProject(result.data);
-      setView('workflow');
-      const statusResult = await api.workflow.getStatus(project.id);
-      if (statusResult.success) setWorkflowStatus(statusResult.data);
+    try {
+      const result = await api.project.get(project.id);
+      if (result.success) {
+        setCurrentProject(result.data);
+        setView('workflow');
+        const statusResult = await api.workflow.getStatus(project.id);
+        if (statusResult.success) setWorkflowStatus(statusResult.data);
+      }
+    } catch (err) {
+      showToast('error', `プロジェクト読み込み失敗: ${err.message}`);
     }
   }
 
   async function createProject(data) {
     setLoading(true);
-    const result = await api.project.create(data);
-    if (result.success) {
-      setCurrentProject(result.data);
-      await loadProjects();
-      setView('workflow');
-      showToast('success', `プロジェクト「${result.data.name}」を作成しました`);
-      addLog('info', `プロジェクト「${result.data.name}」を作成しました`);
-    } else {
-      showToast('error', `作成失敗: ${result.error}`);
+    try {
+      const result = await api.project.create(data);
+      if (result.success) {
+        setCurrentProject(result.data);
+        await loadProjects();
+        setView('workflow');
+        showToast('success', `プロジェクト「${result.data.name}」を作成しました`);
+        addLog('info', `プロジェクト「${result.data.name}」を作成しました`);
+      } else {
+        showToast('error', `作成失敗: ${result.error}`);
+      }
+    } catch (err) {
+      showToast('error', `作成失敗: ${err.message}`);
     }
     setLoading(false);
   }
@@ -168,14 +184,18 @@ export default function App() {
       message: `プロジェクト「${project?.name || ''}」を削除しますか？\nこの操作は取り消せません。`,
       onConfirm: async () => {
         setConfirmDialog(null);
-        const result = await api.project.delete(id);
-        if (result.success) {
-          if (currentProject?.id === id) {
-            setCurrentProject(null);
-            setView('home');
+        try {
+          const result = await api.project.delete(id);
+          if (result.success) {
+            if (currentProject?.id === id) {
+              setCurrentProject(null);
+              setView('home');
+            }
+            await loadProjects();
+            showToast('info', 'プロジェクトを削除しました');
           }
-          await loadProjects();
-          showToast('info', 'プロジェクトを削除しました');
+        } catch (err) {
+          showToast('error', `削除失敗: ${err.message}`);
         }
       },
     });
@@ -189,15 +209,19 @@ export default function App() {
     }
     setLoading(true);
     addLog('info', 'ワークフロー開始...');
-    const result = await api.workflow.start(currentProject.id);
-    if (result.success) {
-      showToast('info', 'ワークフローを開始しました');
-      // Reload workflow status
-      const statusResult = await api.workflow.getStatus(currentProject.id);
-      if (statusResult.success) setWorkflowStatus(statusResult.data);
-    } else {
-      addLog('error', `ワークフロー開始失敗: ${result.error}`);
-      showToast('error', result.error, 6000);
+    try {
+      const result = await api.workflow.start(currentProject.id);
+      if (result.success) {
+        showToast('info', 'ワークフローを開始しました');
+        const statusResult = await api.workflow.getStatus(currentProject.id);
+        if (statusResult.success) setWorkflowStatus(statusResult.data);
+      } else {
+        addLog('error', `ワークフロー開始失敗: ${result.error}`);
+        showToast('error', result.error, 6000);
+      }
+    } catch (err) {
+      addLog('error', `ワークフロー開始失敗: ${err.message}`);
+      showToast('error', err.message, 6000);
     }
     setLoading(false);
   }
@@ -206,18 +230,24 @@ export default function App() {
     if (!currentProject) return;
     setLoading(true);
     addLog('info', '台本を生成中...');
-    const result = await api.script.generate(currentProject.id, params);
-    if (result.success) {
-      addLog('success', `台本生成完了: ${result.data.scenes.length}シーン`);
-      showToast('success', `台本生成完了（${result.data.scenes.length}シーン）`);
-      const projResult = await api.project.get(currentProject.id);
-      if (projResult.success) setCurrentProject(projResult.data);
-    } else {
-      addLog('error', `台本生成失敗: ${result.error}`);
-      showToast('error', `台本生成失敗: ${result.error}`, 6000);
+    try {
+      const result = await api.script.generate(currentProject.id, params);
+      if (result.success) {
+        addLog('success', `台本生成完了: ${result.data.scenes.length}シーン`);
+        showToast('success', `台本生成完了（${result.data.scenes.length}シーン）`);
+        const projResult = await api.project.get(currentProject.id);
+        if (projResult.success) setCurrentProject(projResult.data);
+      } else {
+        addLog('error', `台本生成失敗: ${result.error}`);
+        showToast('error', `台本生成失敗: ${result.error}`, 6000);
+      }
+      setLoading(false);
+      return result;
+    } catch (err) {
+      addLog('error', `台本生成失敗: ${err.message}`);
+      showToast('error', `台本生成失敗: ${err.message}`, 6000);
+      setLoading(false);
     }
-    setLoading(false);
-    return result;
   }
 
   async function renderVideo() {
@@ -228,15 +258,20 @@ export default function App() {
     }
     setLoading(true);
     addLog('info', '動画をレンダリング中...');
-    const result = await api.video.render(currentProject.id);
-    if (result.success) {
-      addLog('success', '動画レンダリング完了');
-      showToast('success', '動画レンダリング完了');
-      const projResult = await api.project.get(currentProject.id);
-      if (projResult.success) setCurrentProject(projResult.data);
-    } else {
-      addLog('error', `レンダリング失敗: ${result.error}`);
-      showToast('error', `レンダリング失敗: ${result.error}`, 6000);
+    try {
+      const result = await api.video.render(currentProject.id);
+      if (result.success) {
+        addLog('success', '動画レンダリング完了');
+        showToast('success', '動画レンダリング完了');
+        const projResult = await api.project.get(currentProject.id);
+        if (projResult.success) setCurrentProject(projResult.data);
+      } else {
+        addLog('error', `レンダリング失敗: ${result.error}`);
+        showToast('error', `レンダリング失敗: ${result.error}`, 6000);
+      }
+    } catch (err) {
+      addLog('error', `レンダリング失敗: ${err.message}`);
+      showToast('error', `レンダリング失敗: ${err.message}`, 6000);
     }
     setLoading(false);
   }
