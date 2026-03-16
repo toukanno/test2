@@ -50,6 +50,17 @@ function createWindow() {
   });
 
   if (isDev) {
+    // Relax CSP for webpack dev server (HMR websocket)
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; connect-src 'self' ws://localhost:*;",
+          ],
+        },
+      });
+    });
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {

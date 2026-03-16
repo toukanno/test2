@@ -60,15 +60,19 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
 
   // === System info handler ===
   ipcMain.handle('system:info', async () => {
-    return {
-      success: true,
-      data: {
-        ffmpegAvailable: systemInfo.ffmpegStatus?.available || false,
-        ffmpegVersion: systemInfo.ffmpegStatus?.version || null,
-        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-        hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
-      },
-    };
+    try {
+      return {
+        success: true,
+        data: {
+          ffmpegAvailable: systemInfo.ffmpegStatus?.available || false,
+          ffmpegVersion: systemInfo.ffmpegStatus?.version || null,
+          hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+          hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+        },
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   // === Project handlers ===
@@ -325,36 +329,45 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
 
   // === Settings handlers ===
   ipcMain.handle('settings:get', async () => {
-    return {
-      success: true,
-      data: {
-        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-        hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
-      },
-    };
+    try {
+      return {
+        success: true,
+        data: {
+          hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+          hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+        },
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle('settings:update', async (_e, settings) => {
-    // Update runtime + persist to store
-    if (settings.openaiApiKey) {
-      process.env.OPENAI_API_KEY = settings.openaiApiKey;
-      store.set('openaiApiKey', settings.openaiApiKey);
+    try {
+      // Update runtime + persist to store
+      if (settings.openaiApiKey) {
+        process.env.OPENAI_API_KEY = settings.openaiApiKey;
+        store.set('openaiApiKey', settings.openaiApiKey);
+      }
+      if (settings.youtubeClientId) {
+        process.env.YOUTUBE_CLIENT_ID = settings.youtubeClientId;
+        store.set('youtubeClientId', settings.youtubeClientId);
+      }
+      if (settings.youtubeClientSecret) {
+        process.env.YOUTUBE_CLIENT_SECRET = settings.youtubeClientSecret;
+        store.set('youtubeClientSecret', settings.youtubeClientSecret);
+      }
+      return {
+        success: true,
+        data: {
+          hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+          hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+        },
+      };
+    } catch (err) {
+      logger.error('settings:update failed', err);
+      return { success: false, error: err.message };
     }
-    if (settings.youtubeClientId) {
-      process.env.YOUTUBE_CLIENT_ID = settings.youtubeClientId;
-      store.set('youtubeClientId', settings.youtubeClientId);
-    }
-    if (settings.youtubeClientSecret) {
-      process.env.YOUTUBE_CLIENT_SECRET = settings.youtubeClientSecret;
-      store.set('youtubeClientSecret', settings.youtubeClientSecret);
-    }
-    return {
-      success: true,
-      data: {
-        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-        hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
-      },
-    };
   });
 
   ipcMain.handle('settings:validateApiKey', async () => {
@@ -368,15 +381,23 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
 
   // === Dialog handlers ===
   ipcMain.handle('dialog:selectFile', async (_e, options) => {
-    const result = await dialog.showOpenDialog(options || {});
-    if (result.canceled) return { success: false, error: 'Canceled' };
-    return { success: true, data: result.filePaths };
+    try {
+      const result = await dialog.showOpenDialog(options || {});
+      if (result.canceled) return { success: false, error: 'Canceled' };
+      return { success: true, data: result.filePaths };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle('dialog:selectDirectory', async () => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    if (result.canceled) return { success: false, error: 'Canceled' };
-    return { success: true, data: result.filePaths[0] };
+    try {
+      const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+      if (result.canceled) return { success: false, error: 'Canceled' };
+      return { success: true, data: result.filePaths[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   logger.info('IPC handlers registered');
