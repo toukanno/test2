@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function VideoPreview({ project, onRender, onBack, loading }) {
+  const [copied, setCopied] = useState(false);
+
+  function copyPath() {
+    if (project.outputPath) {
+      navigator.clipboard.writeText(project.outputPath).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
+
   return (
     <div className="panel">
       <div className="panel-header">
@@ -14,15 +25,21 @@ export default function VideoPreview({ project, onRender, onBack, loading }) {
             className="video-player"
             controls
             src={`file://${project.outputPath}`}
+            key={project.outputPath}
           >
             お使いのブラウザは動画タグをサポートしていません。
           </video>
           <div className="preview-info">
-            <p>出力ファイル: {project.outputPath}</p>
+            <p>
+              出力ファイル: {project.outputPath}
+              <button className="btn btn-ghost btn-sm" onClick={copyPath} style={{ marginLeft: 8 }}>
+                {copied ? 'コピー済み' : 'パスをコピー'}
+              </button>
+            </p>
           </div>
           <div className="form-actions">
             <button className="btn btn-outline" onClick={onRender} disabled={loading}>
-              再レンダリング
+              {loading ? 'レンダリング中...' : '再レンダリング'}
             </button>
           </div>
         </div>

@@ -57,10 +57,29 @@ class VideoGenerator {
       fs.renameSync(withSubsPath, outputPath);
     }
 
+    // Cleanup temp files
+    this._cleanupTemp(tempDir, sceneVideos);
+
     onProgress(100);
     logger.info(`Video rendered: ${outputPath}`);
 
     return { outputPath };
+  }
+
+  /**
+   * Clean up temporary scene videos and concat list
+   */
+  _cleanupTemp(tempDir, sceneVideos) {
+    try {
+      for (const vid of sceneVideos) {
+        if (fs.existsSync(vid)) fs.unlinkSync(vid);
+      }
+      const listPath = path.join(tempDir, 'concat_list.txt');
+      if (fs.existsSync(listPath)) fs.unlinkSync(listPath);
+      logger.info('Temporary render files cleaned up');
+    } catch (err) {
+      logger.warn(`Temp cleanup warning: ${err.message}`);
+    }
   }
 
   /**

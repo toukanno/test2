@@ -22,9 +22,17 @@ class VoiceGenerator {
       throw new Error('No narration text provided');
     }
 
-    logger.info(`Generating voice for scene ${sceneId}: "${text.substring(0, 50)}..."`);
+    // OpenAI TTS has a 4096 character limit
+    const MAX_TTS_LENGTH = 4096;
+    let ttsText = text.trim();
+    if (ttsText.length > MAX_TTS_LENGTH) {
+      logger.warn(`Narration text truncated from ${ttsText.length} to ${MAX_TTS_LENGTH} chars for scene ${sceneId}`);
+      ttsText = ttsText.substring(0, MAX_TTS_LENGTH);
+    }
 
-    const audioBuffer = await this.ai.generateSpeech(text, {
+    logger.info(`Generating voice for scene ${sceneId}: "${ttsText.substring(0, 50)}..."`);
+
+    const audioBuffer = await this.ai.generateSpeech(ttsText, {
       voice: options.voice || 'alloy',
       speed: options.speed || 1.0,
       model: 'tts-1',

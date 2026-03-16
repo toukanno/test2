@@ -42,7 +42,8 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
   const voiceGen = new VoiceGenerator(aiProvider, storagePath);
   const videoGen = new VideoGenerator(storagePath);
   const subtitleGen = new SubtitleGenerator();
-  const youtubePublisher = new YouTubePublisher();
+  const tokenStore = new SimpleStore({ name: 'youtube-tokens', defaults: {} });
+  const youtubePublisher = new YouTubePublisher(tokenStore);
   const workflowEngine = new WorkflowEngine({
     scriptGen, scenePlanner, imageGen, voiceGen,
     videoGen, subtitleGen, youtubePublisher, projectRepo,

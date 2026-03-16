@@ -197,7 +197,15 @@ export default function YouTubeUpload({ project, onBack, addLog, showToast }) {
           <div className="upload-result">
             <p>アップロード完了！</p>
             <p>Video ID: {uploadResult.videoId}</p>
-            <p>URL: {uploadResult.videoUrl}</p>
+            <p>URL: <a href={uploadResult.videoUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>{uploadResult.videoUrl}</a></p>
+            <div className="form-actions" style={{ marginTop: 12 }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => navigator.clipboard.writeText(uploadResult.videoUrl)}
+              >
+                URLをコピー
+              </button>
+            </div>
           </div>
         ) : (
           <div className="upload-actions">
