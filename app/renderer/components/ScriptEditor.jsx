@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const api = window.electronAPI;
 
-export default function ScriptEditor({ project, onGenerate, onBack, loading }) {
+export default function ScriptEditor({ project, onGenerate, onBack, loading, showToast }) {
   const [script, setScript] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState('');
@@ -39,8 +39,9 @@ export default function ScriptEditor({ project, onGenerate, onBack, loading }) {
       await api.script.update(project.id, parsed);
       setScript(parsed);
       setEditMode(false);
+      showToast?.('success', '台本を保存しました');
     } catch {
-      alert('JSONの形式が正しくありません');
+      showToast?.('error', 'JSONの形式が正しくありません');
     }
   }
 

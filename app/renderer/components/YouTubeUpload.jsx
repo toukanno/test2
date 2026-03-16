@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const api = window.electronAPI;
 
-export default function YouTubeUpload({ project, onBack, addLog }) {
+export default function YouTubeUpload({ project, onBack, addLog, showToast }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [channelInfo, setChannelInfo] = useState(null);
   const [meta, setMeta] = useState({

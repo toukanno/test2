@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const api = window.electronAPI;
 
-export default function SceneList({ project, onBack }) {
+export default function SceneList({ project, onBack, showToast }) {
   const [scenes, setScenes] = useState([]);
   const [loading, setLoading] = useState({});
 
@@ -18,20 +18,33 @@ export default function SceneList({ project, onBack }) {
   async function generateImage(sceneId) {
     setLoading((prev) => ({ ...prev, [`img_${sceneId}`]: true }));
     const result = await api.scene.generateImage(sceneId);
-    if (result.success) await loadScenes();
+    if (result.success) {
+      await loadScenes();
+      showToast?.('success', '画像を生成しました');
+    } else {
+      showToast?.('error', `画像生成失敗: ${result.error}`);
+    }
     setLoading((prev) => ({ ...prev, [`img_${sceneId}`]: false }));
   }
 
   async function generateVoice(sceneId) {
     setLoading((prev) => ({ ...prev, [`voice_${sceneId}`]: true }));
     const result = await api.voice.generate(sceneId);
-    if (result.success) await loadScenes();
+    if (result.success) {
+      await loadScenes();
+      showToast?.('success', '音声を生成しました');
+    } else {
+      showToast?.('error', `音声生成失敗: ${result.error}`);
+    }
     setLoading((prev) => ({ ...prev, [`voice_${sceneId}`]: false }));
   }
 
   async function importAudio(sceneId) {
     const result = await api.voice.importFile(sceneId);
-    if (result.success) await loadScenes();
+    if (result.success) {
+      await loadScenes();
+      showToast?.('success', '音声ファイルをインポートしました');
+    }
   }
 
   const statusIcon = (status) => {
@@ -71,27 +84,38 @@ export default function SceneList({ project, onBack }) {
                 <p>{scene.narration}</p>
               </div>
 
+              {/* Image preview */}
+              {scene.imagePath && scene.imageStatus === 'generated' && (
+                <div className="scene-preview">
+                  <img
+                    src={`file://${scene.imagePath}`}
+                    alt={`Scene ${scene.sceneNumber}`}
+                    className="scene-preview-img"
+                  />
+                </div>
+              )}
+
               <div className="scene-assets">
                 <div className="scene-asset">
-                  <span>画像: {statusIcon(scene.imageStatus)} {scene.imageStatus}</span>
+                  <span>画像: {statusIcon(scene.imageStatus)} {scene.imageStatus || 'なし'}</span>
                   <button
                     className="btn btn-sm btn-outline"
                     onClick={() => generateImage(scene.id)}
                     disabled={loading[`img_${scene.id}`]}
                   >
-                    {loading[`img_${scene.id}`] ? '生成中...' : '画像生成'}
+                    {loading[`img_${scene.id}`] ? '生成中...' : scene.imageStatus === 'generated' ? '再生成' : '画像生成'}
                   </button>
                 </div>
 
                 <div className="scene-asset">
-                  <span>音声: {statusIcon(scene.audioStatus)} {scene.audioStatus}</span>
+                  <span>音声: {statusIcon(scene.audioStatus)} {scene.audioStatus || 'なし'}</span>
                   <div className="btn-group">
                     <button
                       className="btn btn-sm btn-outline"
                       onClick={() => generateVoice(scene.id)}
                       disabled={loading[`voice_${scene.id}`]}
                     >
-                      {loading[`voice_${scene.id}`] ? '生成中...' : '音声生成'}
+                      {loading[`voice_${scene.id}`] ? '生成中...' : scene.audioStatus === 'generated' ? '再生成' : '音声生成'}
                     </button>
                     <button
                       className="btn btn-sm btn-ghost"

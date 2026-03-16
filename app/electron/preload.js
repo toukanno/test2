@@ -2,6 +2,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose only safe APIs to renderer via contextBridge
 contextBridge.exposeInMainWorld('electronAPI', {
+  // System info
+  system: {
+    info: () => ipcRenderer.invoke('system:info'),
+  },
+
   // Project management
   project: {
     create: (data) => ipcRenderer.invoke('project:create', data),

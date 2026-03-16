@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 
 const api = window.electronAPI;
 
-export default function SettingsPanel({ onBack }) {
+export default function SettingsPanel({ onBack, showToast, systemInfo }) {
   const [settings, setSettings] = useState({ hasOpenAIKey: false, hasYouTubeCredentials: false });
   const [openaiKey, setOpenaiKey] = useState('');
   const [ytClientId, setYtClientId] = useState('');
   const [ytClientSecret, setYtClientSecret] = useState('');
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -24,18 +23,25 @@ export default function SettingsPanel({ onBack }) {
     if (ytClientId) updates.youtubeClientId = ytClientId;
     if (ytClientSecret) updates.youtubeClientSecret = ytClientSecret;
 
+    if (Object.keys(updates).length === 0) {
+      showToast?.('info', '変更はありません');
+      return;
+    }
+
     await api.settings.update(updates);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    showToast?.('success', '設定を保存しました（アプリ再起動後も有効です）');
+    setOpenaiKey('');
+    setYtClientId('');
+    setYtClientSecret('');
     await loadSettings();
   }
 
   async function validateKey() {
     const result = await api.settings.validateApiKey();
     if (result.success && result.data.valid) {
-      alert('APIキーは有効です');
+      showToast?.('success', 'APIキーは有効です');
     } else {
-      alert('APIキーが無効です。確認してください。');
+      showToast?.('error', 'APIキーが無効です。確認してください。');
     }
   }
 
@@ -46,22 +52,36 @@ export default function SettingsPanel({ onBack }) {
         <button className="btn btn-ghost" onClick={onBack}>← 戻る</button>
       </div>
 
+      {/* FFmpeg Status */}
+      <div className="section">
+        <h3>システム</h3>
+        <p className="setting-status">
+          FFmpeg: {systemInfo?.ffmpegAvailable
+            ? `✅ インストール済み (${systemInfo.ffmpegVersion})`
+            : '❌ 未インストール — 動画生成に必要です'}
+        </p>
+        {!systemInfo?.ffmpegAvailable && (
+          <p className="form-help">
+            FFmpegをインストールしてPATHに追加するか、.envファイルで FFMPEG_PATH を指定してください。
+          </p>
+        )}
+      </div>
+
       <div className="section">
         <h3>OpenAI API</h3>
         <p className="setting-status">
           ステータス: {settings.hasOpenAIKey ? '✅ 設定済み' : '❌ 未設定'}
         </p>
         <div className="form-group">
-          <label>APIキー（.envでの設定を推奨）</label>
+          <label>APIキー</label>
           <input
             type="password"
             value={openaiKey}
             onChange={(e) => setOpenaiKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder={settings.hasOpenAIKey ? '（変更する場合のみ入力）' : 'sk-...'}
           />
           <p className="form-help">
-            セキュリティ上、.env ファイルでの設定を推奨します。
-            ここで入力した値は現在のセッションのみ有効です。
+            保存した設定はアプリ再起動後も有効です。.env ファイルでの設定も可能です。
           </p>
         </div>
         {settings.hasOpenAIKey && (
@@ -82,7 +102,7 @@ export default function SettingsPanel({ onBack }) {
             type="password"
             value={ytClientId}
             onChange={(e) => setYtClientId(e.target.value)}
-            placeholder="xxxx.apps.googleusercontent.com"
+            placeholder={settings.hasYouTubeCredentials ? '（変更する場合のみ入力）' : 'xxxx.apps.googleusercontent.com'}
           />
         </div>
         <div className="form-group">
@@ -91,7 +111,7 @@ export default function SettingsPanel({ onBack }) {
             type="password"
             value={ytClientSecret}
             onChange={(e) => setYtClientSecret(e.target.value)}
-            placeholder="GOCSPX-..."
+            placeholder={settings.hasYouTubeCredentials ? '（変更する場合のみ入力）' : 'GOCSPX-...'}
           />
         </div>
       </div>
@@ -100,7 +120,6 @@ export default function SettingsPanel({ onBack }) {
         <button className="btn btn-primary" onClick={handleSave}>
           保存
         </button>
-        {saved && <span className="save-indicator">保存しました</span>}
       </div>
     </div>
   );

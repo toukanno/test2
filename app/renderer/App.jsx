@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ProjectList from './components/ProjectList';
 import ProjectForm from './components/ProjectForm';
 import WorkflowPanel from './components/WorkflowPanel';
@@ -11,17 +11,71 @@ import SettingsPanel from './components/SettingsPanel';
 
 const api = window.electronAPI;
 
+function Toast({ toasts, onDismiss }) {
+  return (
+    <div className="toast-container">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          className={`toast toast-${toast.level}`}
+          onClick={() => onDismiss(toast.id)}
+        >
+          <span className="toast-icon">
+            {toast.level === 'success' ? '✓' : toast.level === 'error' ? '✗' : 'ℹ'}
+          </span>
+          <span className="toast-message">{toast.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfirmDialog({ message, onConfirm, onCancel }) {
+  return (
+    <div className="dialog-overlay" onClick={onCancel}>
+      <div className="dialog-box" onClick={(e) => e.stopPropagation()}>
+        <p className="dialog-message">{message}</p>
+        <div className="dialog-actions">
+          <button className="btn btn-ghost" onClick={onCancel}>キャンセル</button>
+          <button className="btn btn-primary" onClick={onConfirm} autoFocus>OK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [projects, setProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState(null);
-  const [view, setView] = useState('home'); // home, create, workflow, script, scenes, preview, upload, settings
+  const [view, setView] = useState('home');
   const [workflowStatus, setWorkflowStatus] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const toastIdRef = useRef(0);
 
-  // Load projects on mount
+  // Toast helpers
+  const showToast = useCallback((level, message, duration = 4000) => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev.slice(-4), { id, level, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Load system info + projects on mount
   useEffect(() => {
-    loadProjects();
+    (async () => {
+      const info = await api.system.info();
+      if (info.success) setSystemInfo(info.data);
+      loadProjects();
+    })();
   }, []);
 
   // Listen for workflow events
@@ -29,16 +83,38 @@ export default function App() {
     const cleanups = [];
 
     cleanups.push(api.on('workflow:progress', (data) => {
-      setWorkflowStatus((prev) => ({ ...prev, ...data }));
+      setWorkflowStatus((prev) => ({
+        ...prev,
+        ...data,
+        steps: prev?.steps?.map((s) =>
+          s.id === data.step ? { ...s, status: data.status } : s
+        ) || [],
+      }));
       addLog('info', `[${data.stepName}] ${data.status} - ${data.overallProgress}%`);
     }));
 
     cleanups.push(api.on('workflow:stepComplete', (data) => {
+      setWorkflowStatus((prev) => ({
+        ...prev,
+        steps: prev?.steps?.map((s) =>
+          s.id === data.step ? { ...s, status: 'completed' } : s
+        ) || [],
+        overallProgress: data.overallProgress,
+      }));
       addLog('success', `✓ ${data.stepName} 完了`);
+      showToast('success', `${data.stepName} 完了`);
     }));
 
     cleanups.push(api.on('workflow:error', (data) => {
+      setWorkflowStatus((prev) => ({
+        ...prev,
+        status: 'failed',
+        steps: prev?.steps?.map((s) =>
+          s.id === data.step ? { ...s, status: 'failed', error: data.error } : s
+        ) || [],
+      }));
       addLog('error', `✗ ${data.stepName} 失敗: ${data.error}`);
+      showToast('error', `${data.stepName} 失敗: ${data.error}`, 6000);
     }));
 
     cleanups.push(api.on('render:progress', (data) => {
@@ -66,7 +142,6 @@ export default function App() {
     if (result.success) {
       setCurrentProject(result.data);
       setView('workflow');
-      // Load workflow status
       const statusResult = await api.workflow.getStatus(project.id);
       if (statusResult.success) setWorkflowStatus(statusResult.data);
     }
@@ -79,29 +154,50 @@ export default function App() {
       setCurrentProject(result.data);
       await loadProjects();
       setView('workflow');
+      showToast('success', `プロジェクト「${result.data.name}」を作成しました`);
       addLog('info', `プロジェクト「${result.data.name}」を作成しました`);
+    } else {
+      showToast('error', `作成失敗: ${result.error}`);
     }
     setLoading(false);
   }
 
-  async function deleteProject(id) {
-    const result = await api.project.delete(id);
-    if (result.success) {
-      if (currentProject?.id === id) {
-        setCurrentProject(null);
-        setView('home');
-      }
-      await loadProjects();
-    }
+  function deleteProject(id) {
+    const project = projects.find((p) => p.id === id);
+    setConfirmDialog({
+      message: `プロジェクト「${project?.name || ''}」を削除しますか？\nこの操作は取り消せません。`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        const result = await api.project.delete(id);
+        if (result.success) {
+          if (currentProject?.id === id) {
+            setCurrentProject(null);
+            setView('home');
+          }
+          await loadProjects();
+          showToast('info', 'プロジェクトを削除しました');
+        }
+      },
+    });
   }
 
   async function startWorkflow() {
     if (!currentProject) return;
+    if (!systemInfo?.hasOpenAIKey) {
+      showToast('error', 'OpenAI APIキーが設定されていません。設定画面からキーを入力してください。', 6000);
+      return;
+    }
     setLoading(true);
     addLog('info', 'ワークフロー開始...');
     const result = await api.workflow.start(currentProject.id);
-    if (!result.success) {
+    if (result.success) {
+      showToast('info', 'ワークフローを開始しました');
+      // Reload workflow status
+      const statusResult = await api.workflow.getStatus(currentProject.id);
+      if (statusResult.success) setWorkflowStatus(statusResult.data);
+    } else {
       addLog('error', `ワークフロー開始失敗: ${result.error}`);
+      showToast('error', result.error, 6000);
     }
     setLoading(false);
   }
@@ -113,11 +209,12 @@ export default function App() {
     const result = await api.script.generate(currentProject.id, params);
     if (result.success) {
       addLog('success', `台本生成完了: ${result.data.scenes.length}シーン`);
-      // Refresh project
+      showToast('success', `台本生成完了（${result.data.scenes.length}シーン）`);
       const projResult = await api.project.get(currentProject.id);
       if (projResult.success) setCurrentProject(projResult.data);
     } else {
       addLog('error', `台本生成失敗: ${result.error}`);
+      showToast('error', `台本生成失敗: ${result.error}`, 6000);
     }
     setLoading(false);
     return result;
@@ -125,15 +222,21 @@ export default function App() {
 
   async function renderVideo() {
     if (!currentProject) return;
+    if (!systemInfo?.ffmpegAvailable) {
+      showToast('error', 'FFmpegがインストールされていません。動画生成にはFFmpegが必要です。', 6000);
+      return;
+    }
     setLoading(true);
     addLog('info', '動画をレンダリング中...');
     const result = await api.video.render(currentProject.id);
     if (result.success) {
       addLog('success', '動画レンダリング完了');
+      showToast('success', '動画レンダリング完了');
       const projResult = await api.project.get(currentProject.id);
       if (projResult.success) setCurrentProject(projResult.data);
     } else {
       addLog('error', `レンダリング失敗: ${result.error}`);
+      showToast('error', `レンダリング失敗: ${result.error}`, 6000);
     }
     setLoading(false);
   }
@@ -150,6 +253,26 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Toast notifications */}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Confirm dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
+
+      {/* System warnings */}
+      {systemInfo && !systemInfo.ffmpegAvailable && view !== 'settings' && (
+        <div className="system-warning">
+          FFmpegが見つかりません — 動画生成機能が使えません。
+          <button className="btn btn-ghost btn-sm" onClick={() => setView('settings')}>設定を確認</button>
+        </div>
+      )}
+
       {/* Sidebar - Project List */}
       <aside className="sidebar">
         <div className="sidebar-header">
@@ -202,6 +325,7 @@ export default function App() {
             loading={loading}
             statusLabels={statusLabels}
             statusColors={statusColors}
+            systemInfo={systemInfo}
           />
         )}
 
@@ -211,6 +335,7 @@ export default function App() {
             onGenerate={generateScript}
             onBack={() => setView('workflow')}
             loading={loading}
+            showToast={showToast}
           />
         )}
 
@@ -218,6 +343,7 @@ export default function App() {
           <SceneList
             project={currentProject}
             onBack={() => setView('workflow')}
+            showToast={showToast}
           />
         )}
 
@@ -235,11 +361,16 @@ export default function App() {
             project={currentProject}
             onBack={() => setView('workflow')}
             addLog={addLog}
+            showToast={showToast}
           />
         )}
 
         {view === 'settings' && (
-          <SettingsPanel onBack={() => setView(currentProject ? 'workflow' : 'home')} />
+          <SettingsPanel
+            onBack={() => setView(currentProject ? 'workflow' : 'home')}
+            showToast={showToast}
+            systemInfo={systemInfo}
+          />
         )}
       </main>
 

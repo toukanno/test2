@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const { execFile } = require('child_process');
 const dotenv = require('dotenv');
 
 // Load environment variables
@@ -14,6 +15,24 @@ const logger = createLogger('main');
 const isDev = !app.isPackaged;
 
 let mainWindow = null;
+
+/**
+ * Check if FFmpeg is available on the system
+ * @returns {Promise<{available: boolean, version: string|null}>}
+ */
+function checkFfmpeg() {
+  return new Promise((resolve) => {
+    const ffmpegBin = process.env.FFMPEG_PATH || 'ffmpeg';
+    execFile(ffmpegBin, ['-version'], { timeout: 5000 }, (err, stdout) => {
+      if (err) {
+        resolve({ available: false, version: null });
+      } else {
+        const match = stdout.match(/ffmpeg version (\S+)/);
+        resolve({ available: true, version: match ? match[1] : 'unknown' });
+      }
+    });
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -58,8 +77,16 @@ app.whenReady().then(async () => {
       : path.join(app.getPath('userData'), 'storage', 'app.db');
     initDatabase(dbPath);
 
-    // Register IPC handlers
-    registerIpcHandlers(ipcMain, mainWindow, storagePath);
+    // Check FFmpeg availability
+    const ffmpegStatus = await checkFfmpeg();
+    if (ffmpegStatus.available) {
+      logger.info(`FFmpeg found: ${ffmpegStatus.version}`);
+    } else {
+      logger.error('FFmpeg not found on system PATH');
+    }
+
+    // Register IPC handlers (pass getter function since mainWindow is not yet created)
+    registerIpcHandlers(ipcMain, () => mainWindow, storagePath, { ffmpegStatus });
 
     createWindow();
     logger.info('Application started successfully');

@@ -1,5 +1,6 @@
 const { dialog } = require('electron');
 const path = require('path');
+const { SimpleStore } = require('../modules/data-layer/simple-store');
 const { ProjectRepository } = require('../modules/data-layer/repositories');
 const { ScriptGenerator } = require('../modules/script-generator');
 const { ScenePlanner } = require('../modules/scene-planner');
@@ -14,7 +15,25 @@ const { createLogger } = require('../modules/data-layer/logger');
 
 const logger = createLogger('ipc');
 
-function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
+function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {}) {
+  // Persistent settings store
+  const store = new SimpleStore({
+    name: 'settings',
+    defaults: {
+      openaiApiKey: '',
+      youtubeClientId: '',
+      youtubeClientSecret: '',
+    },
+  });
+
+  // Restore saved credentials to environment
+  const savedKey = store.get('openaiApiKey');
+  if (savedKey && !process.env.OPENAI_API_KEY) process.env.OPENAI_API_KEY = savedKey;
+  const savedYtId = store.get('youtubeClientId');
+  if (savedYtId && !process.env.YOUTUBE_CLIENT_ID) process.env.YOUTUBE_CLIENT_ID = savedYtId;
+  const savedYtSecret = store.get('youtubeClientSecret');
+  if (savedYtSecret && !process.env.YOUTUBE_CLIENT_SECRET) process.env.YOUTUBE_CLIENT_SECRET = savedYtSecret;
+
   const aiProvider = createAIProvider('openai');
   const projectRepo = new ProjectRepository();
   const scriptGen = new ScriptGenerator(aiProvider);
@@ -30,14 +49,25 @@ function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
   });
 
   // Emit progress events to renderer
-  workflowEngine.on('progress', (data) => {
-    if (mainWindow) mainWindow.webContents.send('workflow:progress', data);
-  });
-  workflowEngine.on('stepComplete', (data) => {
-    if (mainWindow) mainWindow.webContents.send('workflow:stepComplete', data);
-  });
-  workflowEngine.on('error', (data) => {
-    if (mainWindow) mainWindow.webContents.send('workflow:error', data);
+  const sendToRenderer = (channel, data) => {
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) win.webContents.send(channel, data);
+  };
+  workflowEngine.on('progress', (data) => sendToRenderer('workflow:progress', data));
+  workflowEngine.on('stepComplete', (data) => sendToRenderer('workflow:stepComplete', data));
+  workflowEngine.on('error', (data) => sendToRenderer('workflow:error', data));
+
+  // === System info handler ===
+  ipcMain.handle('system:info', async () => {
+    return {
+      success: true,
+      data: {
+        ffmpegAvailable: systemInfo.ffmpegStatus?.available || false,
+        ffmpegVersion: systemInfo.ffmpegStatus?.version || null,
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+        hasYouTubeCredentials: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+      },
+    };
   });
 
   // === Project handlers ===
@@ -180,10 +210,13 @@ function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
   // === Video handlers ===
   ipcMain.handle('video:render', async (_e, projectId) => {
     try {
+      if (!systemInfo.ffmpegStatus?.available) {
+        return { success: false, error: 'FFmpegがインストールされていません。動画レンダリングにはFFmpegが必要です。' };
+      }
       const project = projectRepo.get(projectId);
       const scenes = projectRepo.getScenes(projectId);
       const result = await videoGen.render(project, scenes, (progress) => {
-        if (mainWindow) mainWindow.webContents.send('render:progress', { projectId, progress });
+        sendToRenderer('render:progress', { projectId, progress });
       });
       projectRepo.update(projectId, { outputPath: result.outputPath, status: 'rendered' });
       return { success: true, data: result };
@@ -246,7 +279,7 @@ function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
     try {
       const project = projectRepo.get(projectId);
       const result = await youtubePublisher.upload(project.outputPath, meta, (progress) => {
-        if (mainWindow) mainWindow.webContents.send('upload:progress', { projectId, progress });
+        sendToRenderer('upload:progress', { projectId, progress });
       });
       projectRepo.update(projectId, { youtubeVideoId: result.videoId, status: 'uploaded' });
       return { success: true, data: result };
@@ -259,6 +292,11 @@ function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
   // === Workflow handlers ===
   ipcMain.handle('workflow:start', async (_e, projectId) => {
     try {
+      // Guard against concurrent workflows for same project
+      const existing = workflowEngine.getStatus(projectId);
+      if (existing && existing.status === 'running') {
+        return { success: false, error: 'このプロジェクトのワークフローは既に実行中です' };
+      }
       workflowEngine.startWorkflow(projectId);
       return { success: true };
     } catch (err) {
@@ -296,10 +334,19 @@ function registerIpcHandlers(ipcMain, mainWindow, storagePath) {
   });
 
   ipcMain.handle('settings:update', async (_e, settings) => {
-    // Settings are stored in .env - we only update runtime values
-    if (settings.openaiApiKey) process.env.OPENAI_API_KEY = settings.openaiApiKey;
-    if (settings.youtubeClientId) process.env.YOUTUBE_CLIENT_ID = settings.youtubeClientId;
-    if (settings.youtubeClientSecret) process.env.YOUTUBE_CLIENT_SECRET = settings.youtubeClientSecret;
+    // Update runtime + persist to electron-store
+    if (settings.openaiApiKey) {
+      process.env.OPENAI_API_KEY = settings.openaiApiKey;
+      store.set('openaiApiKey', settings.openaiApiKey);
+    }
+    if (settings.youtubeClientId) {
+      process.env.YOUTUBE_CLIENT_ID = settings.youtubeClientId;
+      store.set('youtubeClientId', settings.youtubeClientId);
+    }
+    if (settings.youtubeClientSecret) {
+      process.env.YOUTUBE_CLIENT_SECRET = settings.youtubeClientSecret;
+      store.set('youtubeClientSecret', settings.youtubeClientSecret);
+    }
     return { success: true };
   });
 

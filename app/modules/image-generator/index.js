@@ -40,7 +40,8 @@ class ImageGenerator {
   }
 
   /**
-   * Generate a placeholder image (solid color with text)
+   * Generate a placeholder image (1x1 black PNG)
+   * Creates an actual file so downstream processing doesn't break
    */
   createPlaceholder(scene) {
     const fileName = `placeholder_${scene.sceneNumber}.png`;
@@ -48,7 +49,16 @@ class ImageGenerator {
     fs.mkdirSync(outputDir, { recursive: true });
     const filePath = path.join(outputDir, fileName);
 
-    // Return path even without actual file - ffmpeg can use a color source
+    // Minimal valid 1x1 black PNG (67 bytes)
+    const PNG_1x1_BLACK = Buffer.from(
+      '89504e470d0a1a0a0000000d4948445200000001000000010800000000' +
+      '3a7e9b550000000a49444154789c626000000002000198e1938a000000' +
+      '0049454e44ae426082',
+      'hex'
+    );
+    fs.writeFileSync(filePath, PNG_1x1_BLACK);
+
+    logger.info(`Placeholder image created: ${filePath}`);
     return { filePath, fileName, isPlaceholder: true };
   }
 }

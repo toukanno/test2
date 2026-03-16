@@ -10,11 +10,17 @@ const STEPS = [
   { id: 'metadata_generation', name: 'メタデータ', icon: '📋', view: null },
 ];
 
-export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow, onNavigate, loading, statusLabels, statusColors }) {
+export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow, onNavigate, loading, statusLabels, statusColors, systemInfo }) {
   const getStepStatus = (stepId) => {
     if (!workflowStatus?.steps) return 'pending';
     const step = workflowStatus.steps.find((s) => s.id === stepId);
     return step?.status || 'pending';
+  };
+
+  const getStepError = (stepId) => {
+    if (!workflowStatus?.steps) return null;
+    const step = workflowStatus.steps.find((s) => s.id === stepId);
+    return step?.error || null;
   };
 
   const stepStatusIcons = {
@@ -30,6 +36,10 @@ export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow
     completed: '#10b981',
     failed: '#ef4444',
   };
+
+  const canStart = !loading &&
+    project.status !== 'processing' &&
+    systemInfo?.hasOpenAIKey;
 
   return (
     <div className="panel">
@@ -47,16 +57,31 @@ export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow
           <button
             className="btn btn-primary"
             onClick={onStartWorkflow}
-            disabled={loading || project.status === 'processing'}
+            disabled={!canStart}
+            title={!systemInfo?.hasOpenAIKey ? 'OpenAI APIキーが必要です' : ''}
           >
             {project.status === 'processing' ? '処理中...' : '自動生成開始'}
           </button>
         </div>
       </div>
 
+      {/* Setup warnings */}
+      {systemInfo && !systemInfo.hasOpenAIKey && (
+        <div className="warning-box">
+          OpenAI APIキーが設定されていません。
+          <button className="btn btn-ghost btn-sm" onClick={() => onNavigate('settings')}>設定する</button>
+        </div>
+      )}
+      {systemInfo && !systemInfo.ffmpegAvailable && (
+        <div className="warning-box">
+          FFmpegが見つかりません。動画生成ステップが実行できません。
+        </div>
+      )}
+
       <div className="workflow-steps">
         {STEPS.map((step, index) => {
           const status = getStepStatus(step.id);
+          const error = getStepError(step.id);
           return (
             <div key={step.id} className={`workflow-step workflow-step-${status}`}>
               <div className="workflow-step-indicator">
@@ -66,11 +91,15 @@ export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow
                 {index < STEPS.length - 1 && <div className="workflow-step-line" />}
               </div>
               <div className="workflow-step-content">
-                <div className="workflow-step-header">
-                  <span className="workflow-step-icon">{step.icon}</span>
-                  <span className="workflow-step-name">{step.name}</span>
-                  {status === 'failed' && (
-                    <span className="workflow-step-error">エラー</span>
+                <div>
+                  <div className="workflow-step-header">
+                    <span className="workflow-step-icon">{step.icon}</span>
+                    <span className="workflow-step-name">{step.name}</span>
+                    {status === 'running' && <span className="workflow-step-running">実行中...</span>}
+                    {status === 'failed' && <span className="workflow-step-error">エラー</span>}
+                  </div>
+                  {error && (
+                    <p className="workflow-step-error-detail">{error}</p>
                   )}
                 </div>
                 {step.view && (
@@ -88,17 +117,15 @@ export default function WorkflowPanel({ project, workflowStatus, onStartWorkflow
       </div>
 
       {/* Progress bar */}
-      {workflowStatus && (
-        <div className="progress-container">
-          <div className="progress-bar">
-            <div
-              className="progress-fill"
-              style={{ width: `${workflowStatus.overallProgress || 0}%` }}
-            />
-          </div>
-          <span className="progress-text">{workflowStatus.overallProgress || 0}%</span>
+      <div className="progress-container">
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${workflowStatus?.overallProgress || 0}%` }}
+          />
         </div>
-      )}
+        <span className="progress-text">{workflowStatus?.overallProgress || 0}%</span>
+      </div>
 
       {/* Quick actions */}
       <div className="quick-actions">
