@@ -176,7 +176,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
     try {
       const scene = projectRepo.getScene(sceneId);
       const result = await imageGen.generate(scene);
-      projectRepo.updateScene(sceneId, { imageUrl: result.filePath, imageStatus: 'generated' });
+      projectRepo.updateScene(sceneId, { imagePath: result.filePath, imageStatus: 'generated' });
       return { success: true, data: result };
     } catch (err) {
       logger.error('scene:generateImage failed', err);
@@ -302,7 +302,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
       if (existing && existing.status === 'running') {
         return { success: false, error: 'このプロジェクトのワークフローは既に実行中です' };
       }
-      workflowEngine.startWorkflow(projectId);
+      await workflowEngine.startWorkflow(projectId);
       return { success: true };
     } catch (err) {
       logger.error('workflow:start failed', err);
