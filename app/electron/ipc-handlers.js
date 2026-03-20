@@ -176,7 +176,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
     try {
       const scene = projectRepo.getScene(sceneId);
       const result = await imageGen.generate(scene);
-      projectRepo.updateScene(sceneId, { imageUrl: result.filePath, imageStatus: 'generated' });
+      projectRepo.updateScene(sceneId, { imagePath: result.filePath, imageStatus: 'generated' });
       return { success: true, data: result };
     } catch (err) {
       logger.error('scene:generateImage failed', err);
