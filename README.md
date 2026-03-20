@@ -23,6 +23,15 @@ Enter a topic and automatically generate a full video — from AI script writing
 | 📤 YouTube Upload | YouTube Data API で自動投稿 |
 | 🔄 Workflow Engine | 全工程をパイプラインで一括実行 |
 
+## Quick Start
+
+```bash
+git clone https://github.com/toukanno/video-auto-editor-2.git
+cd video-auto-editor-2
+npm install
+npm start
+```
+
 ## Architecture / アーキテクチャ
 
 ```
