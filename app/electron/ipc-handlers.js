@@ -302,7 +302,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, storagePath, systemInfo = {
       if (existing && existing.status === 'running') {
         return { success: false, error: 'このプロジェクトのワークフローは既に実行中です' };
       }
-      workflowEngine.startWorkflow(projectId);
+      await workflowEngine.startWorkflow(projectId);
       return { success: true };
     } catch (err) {
       logger.error('workflow:start failed', err);
