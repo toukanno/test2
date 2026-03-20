@@ -1,0 +1,13 @@
+bug:
+  - head-branch: ['^fix/', '^hotfix/']
+feature:
+  - head-branch: ['^feat/', '^feature/']
+docs:
+  - head-branch: ['^docs/']
+  - changed-files:
+    - any-glob-to-any-file: ['*.md', 'docs/**']
+refactor:
+  - head-branch: ['^refactor/', '^chore/']
+test:
+  - changed-files:
+    - any-glob-to-any-file: ['tests/**', 'test/**', '**/*.test.*', '**/*.spec.*']
