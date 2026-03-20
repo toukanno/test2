@@ -9,7 +9,8 @@
     "dev:renderer": "webpack serve --config webpack.renderer.config.js --mode development",
     "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
     "build": "npm run build:renderer && electron-builder",
-    "pack": "electron-builder --dir"
+    "pack": "electron-builder --dir",
+    "test": "vitest run"
   },
   "build": {
     "appId": "com.aivideo.generator",
@@ -60,6 +61,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "style-loader": "^4.0.0",
+    "vitest": "^4.1.0",
     "wait-on": "^8.0.0",
     "webpack": "^5.95.0",
     "webpack-cli": "^5.1.0",
