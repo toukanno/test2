@@ -1,0 +1,36 @@
+name: CI Failure → Issue
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+jobs:
+  create-issue:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const title = `CI failure on ${run.head_branch} (${run.head_sha.slice(0,7)})`;
+            const body = [
+              `## CI Failure Detected`,
+              `- **Branch:** ${run.head_branch}`,
+              `- **Commit:** ${run.head_sha}`,
+              `- **Run:** ${run.html_url}`,
+              `- **Triggered by:** ${run.triggering_actor.login}`,
+              `- **Date:** ${new Date().toISOString()}`,
+              ``,
+              `Please investigate and fix the failing tests/build.`,
+              ``,
+              `🤖 Auto-created by CI Failure workflow`
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['bug', 'ci-failure']
+            });
