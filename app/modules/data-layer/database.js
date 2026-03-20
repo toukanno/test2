@@ -114,4 +114,19 @@ function getDatabase() {
   return db;
 }
 
-module.exports = { initDatabase, getDatabase };
+/**
+ * Close database connection gracefully
+ */
+function closeDatabase() {
+  if (db) {
+    try {
+      db.close();
+      logger.info('Database closed');
+    } catch (err) {
+      logger.error('Failed to close database', err);
+    }
+    db = null;
+  }
+}
+
+module.exports = { initDatabase, getDatabase, closeDatabase };

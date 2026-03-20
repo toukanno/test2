@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const { registerIpcHandlers } = require('./ipc-handlers');
-const { initDatabase } = require('../modules/data-layer/database');
+const { initDatabase, closeDatabase } = require('../modules/data-layer/database');
 const { ensureDirectories } = require('../modules/data-layer/storage');
 const { createLogger, initFileLogging, closeFileLogging } = require('../modules/data-layer/logger');
 
@@ -118,6 +118,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  closeDatabase();
   closeFileLogging();
 });
 
@@ -125,6 +126,14 @@ app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
   }
+});
+
+// Crash safety: log unhandled errors instead of silent crash
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', err);
+});
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', reason instanceof Error ? reason : new Error(String(reason)));
 });
 
 // Security: prevent new window creation

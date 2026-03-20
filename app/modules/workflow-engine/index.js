@@ -132,6 +132,8 @@ class WorkflowEngine extends EventEmitter {
       overallProgress: 100,
     });
 
+    // Clean up completed workflow from memory
+    this.activeWorkflows.delete(projectId);
     logger.info(`Workflow completed for project ${projectId}`);
   }
 
