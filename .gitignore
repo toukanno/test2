@@ -12,3 +12,6 @@ app/storage/temp/*
 *.log
 .DS_Store
 Thumbs.db
+
+# Common rules (auto-added)
+.idea/
