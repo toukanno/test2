@@ -72,11 +72,13 @@ describe('ProjectRepository', () => {
     });
 
     it('returns all projects ordered by updated_at DESC', () => {
-      repo.create({ theme: 'First' });
-      repo.create({ theme: 'Second' });
+      const first = repo.create({ theme: 'First' });
+      // Touch the second project so its updated_at is strictly later
+      const second = repo.create({ theme: 'Second' });
+      repo.update(second.id, { status: 'processing' });
       const projects = repo.list();
       expect(projects).toHaveLength(2);
-      // Most recently created should come first
+      // Most recently updated should come first
       expect(projects[0].theme).toBe('Second');
     });
   });
