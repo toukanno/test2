@@ -1,0 +1,62 @@
+name: Performance Log
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '17 9 * * 1'  # Weekly Monday 9:17 AM UTC
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install
+        run: |
+          START=$(date +%s%N)
+          npm ci 2>/dev/null || npm install 2>/dev/null || true
+          END=$(date +%s%N)
+          echo "install_ms=$(( (END - START) / 1000000 ))" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          START=$(date +%s%N)
+          npm run build --if-present 2>/dev/null || true
+          END=$(date +%s%N)
+          echo "build_ms=$(( (END - START) / 1000000 ))" >> $GITHUB_ENV
+      - name: Test
+        run: |
+          START=$(date +%s%N)
+          npm test 2>/dev/null || true
+          END=$(date +%s%N)
+          echo "test_ms=$(( (END - START) / 1000000 ))" >> $GITHUB_ENV
+      - name: Bundle Size
+        run: |
+          if [ -d "dist" ]; then
+            SIZE=$(du -sb dist/ | cut -f1)
+          elif [ -d "build" ]; then
+            SIZE=$(du -sb build/ | cut -f1)
+          else
+            SIZE=0
+          fi
+          echo "bundle_bytes=$SIZE" >> $GITHUB_ENV
+      - name: Dependency Count
+        run: |
+          if [ -f "package-lock.json" ]; then
+            DEPS=$(jq '.packages | length' package-lock.json 2>/dev/null || echo 0)
+          else
+            DEPS=0
+          fi
+          echo "dep_count=$DEPS" >> $GITHUB_ENV
+      - name: Log Summary
+        run: |
+          echo "## Performance Log" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Install | ${install_ms}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${build_ms}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${test_ms}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bundle Size | ${bundle_bytes} bytes |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ${dep_count} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Date | $(date -u +%Y-%m-%dT%H:%M:%SZ) |" >> $GITHUB_STEP_SUMMARY
