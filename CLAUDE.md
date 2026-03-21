@@ -20,7 +20,13 @@ npm run pack             # Package to directory (no installer)
 npm start                # Run production Electron (loads build/index.html)
 ```
 
-There are no tests in this project.
+## Tests
+
+```bash
+npm test                 # Run vitest test suite
+```
+
+Tests are in `tests/` — currently covering ScenePlanner (10 tests) and SubtitleGenerator (7 tests).
 
 ## Dependency Direction
 

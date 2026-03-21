@@ -173,7 +173,7 @@ class ProjectRepository {
     const fieldMap = {
       title: 'title', description: 'description', narration: 'narration',
       duration: 'duration', imagePrompt: 'image_prompt', notes: 'notes',
-      imagePath: 'image_path', imageUrl: 'image_path', imageStatus: 'image_status',
+      imagePath: 'image_path', imageStatus: 'image_status',
       audioPath: 'audio_path', audioStatus: 'audio_status', subtitlePath: 'subtitle_path',
       status: 'status',
     };
